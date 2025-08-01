@@ -8,40 +8,59 @@
 #define WINDOW_HEIGHT 600
 #define DEGREE 0.0174533
 
-// KEYS
-#define KEY_W 83
-#define KEY_S 87
-#define KEY_A 65
-#define KEY_D 68
-
 // MAP
-#define SIZE 10
+#define TILE_SIZE 5
 
 // CAMERA / GRAPHICS
-#define FOV 60
-#define LEVEL_OF_DETAIL 10
+#define FOV 75
+#define LEVEL_OF_DETAIL 30
 
-int level[10][10] = {
-    {1,1,1,1,1,1,1,1,1,1},
-    {1,0,1,0,1,0,0,0,0,1},
-    {1,0,1,0,0,0,0,0,0,1},
-    {1,0,1,1,1,0,0,0,0,1},
-    {1,0,0,0,0,0,0,3,0,1},
-    {1,0,0,2,2,0,0,3,0,1},
-    {1,0,0,2,0,0,0,0,0,1},
-    {1,0,0,2,0,0,0,0,0,1},
-    {1,0,0,2,0,0,0,0,0,1},
-    {1,1,1,1,1,1,1,1,1,1},
+#define MAP_SIZE 24
+
+int level[MAP_SIZE][MAP_SIZE]=
+{
+  {4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,4,7,7,7,7,7,7,7,7},
+  {4,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0,0,7},
+  {4,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7},
+  {4,0,2,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7},
+  {4,0,3,0,0,0,0,0,0,0,0,0,0,0,0,0,7,0,0,0,0,0,0,7},
+  {4,0,4,0,0,0,0,5,5,5,5,5,5,5,5,5,7,7,0,7,7,7,7,7},
+  {4,0,5,0,0,0,0,5,0,5,0,5,0,5,0,5,7,0,0,0,7,7,7,1},
+  {4,0,6,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,0,0,0,7},
+  {4,0,7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,7,7,7,1},
+  {4,0,8,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,0,0,0,7},
+  {4,0,0,0,0,0,0,5,0,0,0,0,0,0,0,5,7,0,0,0,7,7,7,1},
+  {4,0,0,0,0,0,0,5,5,5,5,0,5,5,5,5,7,7,7,7,7,7,7,1},
+  {6,6,6,6,6,6,6,6,6,6,6,0,6,6,6,6,6,6,6,6,6,6,6,6},
+  {7,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,4},
+  {6,6,6,6,6,6,0,6,6,6,6,0,6,6,6,6,6,6,6,6,6,6,6,6},
+  {4,4,4,4,4,4,0,4,4,4,6,0,6,2,2,2,2,2,2,2,3,3,3,3},
+  {4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,0,0,0,2},
+  {4,0,0,0,0,0,0,0,0,0,0,0,6,2,0,0,5,0,0,2,0,0,0,2},
+  {4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,2,0,2,2},
+  {4,0,6,0,6,0,0,0,0,4,6,0,0,0,0,0,5,0,0,0,0,0,0,2},
+  {4,0,0,5,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,2,0,2,2},
+  {4,0,6,0,6,0,0,0,0,4,6,0,6,2,0,0,5,0,0,2,0,0,0,2},
+  {4,0,0,0,0,0,0,0,0,4,6,0,6,2,0,0,0,0,0,2,0,0,0,2},
+  {4,4,4,4,4,4,4,4,4,4,1,1,1,2,2,2,2,2,2,3,3,3,3,3}
 };
 
 Color colors[] = {
-    {255, 0, 0},
-    {0, 255, 0},
-    {0, 0, 255}
+    {255, 0, 0},     // Red
+    {0, 255, 0},     // Green
+    {0, 0, 255},     // Blue
+    {100, 130, 0},   // Olive
+    {255, 0, 255},   // Magenta
+    {0, 255, 255},   // Cyan
+    {255, 128, 0},   // Orange
+    {128, 0, 255},   // Purple
+    {0, 128, 128},   // Teal
+    {255, 255, 0}   // Yellow
 };
 
 struct Hit {
     float distance;
+    float distance_along_wall;
     int tile_value;
     bool side;
 };
@@ -105,42 +124,65 @@ struct Hit DDA(Vector2 pos, Vector2 dir) {
         if (level[(int) grid_pos.y][(int) grid_pos.x] != 0)
         {
             Vector2 poi = {pos.x + dir.x * distance, pos.y + dir.y * distance};
+            float daw;
+
+            if (!side) { daw = fabs(poi.x - grid_pos.x); }
+            else { daw = fabs(poi.y - grid_pos.y); }
+
             float distance = distance_vv(poi, pos);
             int tile_value = level[(int) grid_pos.y][(int) grid_pos.x];
-            return (struct Hit){distance, tile_value, side};
+
+            return (struct Hit){distance, daw, tile_value, side};
         }
     }
 
 }
 
+
 int main(void)
 {
+    float bob = 0;
+    float framerate = 0;
+    float elapsed = 0;
+
     Vector2 player_pos= {1.5,1.5};
     float player_angle = PI/2;
 
     float speed_scale = 1./30.;
+    float sprint_scale = 2./30.;
     float turn_speed = 0.02;
 
     InitWindow(WINDOW_WIDTH, WINDOW_HEIGHT, "Raycaster Game");
     DisableCursor();
     SetTargetFPS(60);
 
+    Texture hands = LoadTexture("assets/hands.png");
+    Texture bricks = LoadTexture("assets/bricks.png");
+    Color* brick_colours = LoadImageColors(LoadImage("assets/bricks.png"));
+
     while (!WindowShouldClose())
     {
+        elapsed += GetFrameTime();
+        framerate = 1.0/GetFrameTime();
+        printf("%f\n", framerate);
+        bob = 10*sin(10*elapsed);
+
+        Vector2 movement_vector = {0,0};
         Vector2 dir = from_angle(player_angle);
         Vector2 perpendicular_dir = {-dir.y, dir.x};
-        Vector2 movement_vector = {0,0};
 
         float mx = GetMouseDelta().x;
         player_angle += mx/500;
 
+
         if (IsKeyDown(KEY_W)) {
-            movement_vector.x -= dir.x;
-            movement_vector.y -= dir.y;
-        } else if (IsKeyDown(KEY_S)) {
             movement_vector.x += dir.x;
             movement_vector.y += dir.y;
+        } else if (IsKeyDown(KEY_S)) {
+            movement_vector.x -= dir.x;
+            movement_vector.y -= dir.y;
         }
+
         if (IsKeyDown(KEY_D)) {
             movement_vector.x += perpendicular_dir.x;
             movement_vector.y += perpendicular_dir.y;
@@ -149,8 +191,17 @@ int main(void)
             movement_vector.y -= perpendicular_dir.y;
         }
 
-        movement_vector.x *= speed_scale;
-        movement_vector.y *= speed_scale;
+        if (IsKeyDown(KEY_R)) {
+            movement_vector.x *= sprint_scale;
+            movement_vector.y *= sprint_scale;
+        } else {
+            movement_vector.x *= speed_scale;
+            movement_vector.y *= speed_scale;
+        }
+
+        if (movement_vector.x == 0 && movement_vector.y == 0) {
+            bob = 0;
+        }
 
         player_pos.x += movement_vector.x;
         if (level[(int) player_pos.y][(int) player_pos.x] != 0) {
@@ -167,7 +218,7 @@ int main(void)
         BeginDrawing();
         ClearBackground(BLACK);
 
-        DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT/2, BLACK);
+        DrawRectangle(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT/2, WHITE);
         DrawRectangle(0, WINDOW_HEIGHT/2, WINDOW_WIDTH, WINDOW_HEIGHT/2, DARKGRAY);
         for (int i = 0; i < FOV*LEVEL_OF_DETAIL; i++) {
             float j = (float) i / LEVEL_OF_DETAIL;
@@ -177,6 +228,7 @@ int main(void)
 
             struct Hit hit_info = DDA(player_pos, ray_vector);
             float distance = hit_info.distance * cos(player_angle - ray_angle);
+            float distance_along_wall = hit_info.distance_along_wall;
             int tile_value = hit_info.tile_value;
             bool side = hit_info.side;
 
@@ -189,30 +241,40 @@ int main(void)
 
                 float width = (float) WINDOW_WIDTH/(FOV*LEVEL_OF_DETAIL);
 
-                float r = colors[tile_value-1].r;
-                float g = colors[tile_value-1].g;
-                float b = colors[tile_value-1].b;
+                float index = (int) (distance_along_wall*64);
+                // float r = colors[tile_value-1].r;
+                // float g = colors[tile_value-1].g;
+                // float b = colors[tile_value-1].b;
 
-                Color color = from_rgb(r/2,g/2,b/2);
-                if (side) {color = from_rgb(r, g, b); }
+                // Color color = from_rgb(r,g,b);
+                // if (!side) {color = from_rgb(r/2,g/2,b/2); }
+                
+                for (int j = 0; j < 64; j++) {
+                    float pixel_height = (height/64.);
 
-                DrawRectangle(i*width, y_start, ceil(width), height, color);
+                    Color color = brick_colours[64 * (int)(j) + (int) index];
+                    DrawRectangle(i*width, j*pixel_height + y_start + bob, ceil(width), ceil(pixel_height), color);
+                }
+
 
             }
 
         }
 
-        DrawRectangle(0, 0, 10*SIZE, 10*SIZE, WHITE);
-        for (int x = 0; x < 10; x++) {
-            for (int y = 0; y < 10; y++) {
+        DrawRectangle(0, 0, MAP_SIZE*TILE_SIZE, MAP_SIZE*TILE_SIZE, WHITE);
+        for (int x = 0; x < MAP_SIZE; x++) {
+            for (int y = 0; y < MAP_SIZE; y++) {
 
                 if (level[y][x] > 0) {
-                    DrawRectangle(x*SIZE,y*SIZE,SIZE,SIZE, BLACK);
+                    DrawRectangle(x*TILE_SIZE,y*TILE_SIZE,TILE_SIZE,TILE_SIZE, BLACK);
                 }
             }
         }
-        DrawCircle(player_pos.x*SIZE, player_pos.y*SIZE, 3, RED);
+
+        DrawCircle(player_pos.x*TILE_SIZE, player_pos.y*TILE_SIZE, 2, RED);
+        DrawTextureEx(hands, (Vector2){15-bob,15-bob}, 0, 2.5, WHITE);             // Always draw a texture
         EndDrawing();
+
     }
 
     CloseWindow();
